@@ -1,0 +1,66 @@
+{
+  "name": "agy-judge",
+  "version": "0.1.0",
+  "description": "Judge layer for Antigravity CLI using OpenAI-compatible endpoints.",
+  "type": "module",
+  "author": "Tim Messerschmidt",
+  "homepage": "https://github.com/SeraphimSerapis/agy-judge#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/SeraphimSerapis/agy-judge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/SeraphimSerapis/agy-judge/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "antigravity",
+    "cli",
+    "llm",
+    "judge",
+    "code-review",
+    "openai-compatible",
+    "agent"
+  ],
+  "bin": {
+    "agy-judge": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "plugin",
+    "scripts",
+    "examples",
+    ".env.example",
+    "README.md",
+    "ROADMAP.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "CODE_OF_CONDUCT.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "mock-judge": "node scripts/mockJudge.mjs",
+    "pack:dry-run": "npm pack --dry-run",
+    "prepack": "pnpm build",
+    "test": "vitest run",
+    "test:review": "vitest run test/reviewFlow.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "license": "MIT"
+}

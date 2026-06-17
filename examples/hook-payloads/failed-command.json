@@ -1,0 +1,13 @@
+{
+  "event": "agent_finished",
+  "final_response": "Implemented the change, but tests are failing.",
+  "commands": [
+    {
+      "command": "pnpm test",
+      "exit_code": 1,
+      "stderr": "AssertionError: expected 1 to equal 0"
+    }
+  ],
+  "test_output": "1 test failed"
+}
+

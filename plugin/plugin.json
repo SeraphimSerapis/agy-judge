@@ -1,0 +1,5 @@
+{
+  "name": "agy-judge",
+  "description": "Judge layer for Antigravity CLI using OpenAI-compatible endpoints.",
+  "version": "0.1.0"
+}

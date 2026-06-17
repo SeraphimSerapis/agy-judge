@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+
+.agy-judge.json
+.env
+.env.*
+!.env.example
+
+.DS_Store
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+.tmp/
+tmp/

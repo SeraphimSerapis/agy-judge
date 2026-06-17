@@ -1,0 +1,6 @@
+{
+  "agy-judge": {
+    "type": "command",
+    "command": "agy-judge review"
+  }
+}
