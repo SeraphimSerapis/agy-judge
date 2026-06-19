@@ -26,15 +26,23 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format:check
+
       - name: Typecheck
         run: pnpm typecheck
 
       - name: Test
         run: pnpm test
 
+      - name: Hook replay smoke test
+        run: pnpm test:hook-replay
+
       - name: Build
         run: pnpm build
 
       - name: Pack dry run
         run: npm pack --dry-run
-

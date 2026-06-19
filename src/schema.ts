@@ -14,11 +14,11 @@ export const judgeIssueSchema = z.object({
     "testing",
     "style",
     "performance",
-    "evidence"
+    "evidence",
   ]),
   message: z.string(),
   evidence: z.string(),
-  suggested_fix: z.string()
+  suggested_fix: z.string(),
 });
 
 export const judgeResponseSchema = z.object({
@@ -31,13 +31,13 @@ export const judgeResponseSchema = z.object({
     completeness: z.number().min(0).max(5),
     safety_security: z.number().min(0).max(5),
     maintainability: z.number().min(0).max(5),
-    evidence: z.number().min(0).max(5)
+    evidence: z.number().min(0).max(5),
   }),
   summary: z.string(),
   issues: z.array(judgeIssueSchema),
   required_changes: z.array(z.string()),
   optional_improvements: z.array(z.string()),
-  judge_notes: z.string()
+  judge_notes: z.string(),
 });
 
 export type JudgeResponse = z.infer<typeof judgeResponseSchema>;

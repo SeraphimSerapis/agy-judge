@@ -1,5 +1,4 @@
 {
   "name": "agy-judge",
-  "description": "Judge layer for Antigravity CLI using OpenAI-compatible endpoints.",
-  "version": "0.1.0"
+  "description": "Independent judge layer for Antigravity CLI using OpenAI-compatible endpoints. Not an official Google plugin."
 }

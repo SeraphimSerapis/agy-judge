@@ -34,11 +34,10 @@ Please keep changes small and focused. For behavior changes, add or update tests
 Before opening a pull request, run:
 
 ```sh
-pnpm typecheck
-pnpm test
-pnpm build
-npm pack --dry-run
+pnpm verify
 ```
+
+This runs typecheck, lint, format check, tests, build, and the hook replay smoke test in one pass.
 
 ## Security-Sensitive Changes
 

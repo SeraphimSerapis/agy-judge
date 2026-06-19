@@ -13,13 +13,13 @@ describe("judgeResponseSchema", () => {
         completeness: 4,
         safety_security: 5,
         maintainability: 4,
-        evidence: 4
+        evidence: 4,
       },
       summary: "Looks good.",
       issues: [],
       required_changes: [],
       optional_improvements: [],
-      judge_notes: ""
+      judge_notes: "",
     });
 
     expect(result.success).toBe(true);
@@ -36,13 +36,13 @@ describe("judgeResponseSchema", () => {
         completeness: 0,
         safety_security: 0,
         maintainability: 0,
-        evidence: 0
+        evidence: 0,
       },
       summary: "Insufficient evidence.",
       issues: [],
       required_changes: [],
       optional_improvements: [],
-      judge_notes: ""
+      judge_notes: "",
     });
 
     expect(result.success).toBe(true);
@@ -59,13 +59,13 @@ describe("judgeResponseSchema", () => {
         completeness: 4,
         safety_security: 5,
         maintainability: 4,
-        evidence: 4
+        evidence: 4,
       },
       summary: "Bad shape.",
       issues: [{ severity: "urgent", category: "testing", message: "", evidence: "", suggested_fix: "" }],
       required_changes: [],
       optional_improvements: [],
-      judge_notes: ""
+      judge_notes: "",
     });
 
     expect(result.success).toBe(false);
@@ -82,7 +82,7 @@ describe("judgeResponseSchema", () => {
         completeness: 3,
         safety_security: 5,
         maintainability: 4,
-        evidence: 3
+        evidence: 3,
       },
       summary: "Mostly complete.",
       issues: [
@@ -91,12 +91,12 @@ describe("judgeResponseSchema", () => {
           category: "completeness",
           message: "One expected item is missing.",
           evidence: "The review packet does not show the requested example.",
-          suggested_fix: "Add the missing example."
-        }
+          suggested_fix: "Add the missing example.",
+        },
       ],
       required_changes: [],
       optional_improvements: [],
-      judge_notes: ""
+      judge_notes: "",
     });
 
     expect(result.success).toBe(true);

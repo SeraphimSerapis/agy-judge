@@ -1,13 +1,13 @@
 {
   "name": "agy-judge",
   "version": "0.1.0",
-  "description": "Judge layer for Antigravity CLI using OpenAI-compatible endpoints.",
+  "description": "Independent judge layer for Antigravity CLI using OpenAI-compatible endpoints; not an official Google plugin.",
   "type": "module",
   "author": "Tim Messerschmidt",
   "homepage": "https://github.com/SeraphimSerapis/agy-judge#readme",
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/SeraphimSerapis/agy-judge.git"
+    "url": "git+https://github.com/SeraphimSerapis/agy-judge.git"
   },
   "bugs": {
     "url": "https://github.com/SeraphimSerapis/agy-judge/issues"
@@ -32,9 +32,10 @@
     "plugin",
     "scripts",
     "examples",
+    "docs",
     ".env.example",
     "README.md",
-    "ROADMAP.md",
+    "NOTICE.md",
     "CHANGELOG.md",
     "CONTRIBUTING.md",
     "CODE_OF_CONDUCT.md",
@@ -43,24 +44,39 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
     "mock-judge": "node scripts/mockJudge.mjs",
     "pack:dry-run": "npm pack --dry-run",
     "prepack": "pnpm build",
     "test": "vitest run",
+    "test:hook-replay": "pnpm build && node scripts/hook-replay-smoke.mjs",
     "test:review": "vitest run test/reviewFlow.test.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build && node scripts/hook-replay-smoke.mjs"
   },
   "dependencies": {
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.0",
     "@types/node": "^22.10.2",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vitest": "^3.2.6"
   },
   "engines": {
     "node": ">=20"
   },
   "packageManager": "pnpm@9.15.0",
-  "license": "MIT"
+  "license": "MIT",
+  "pnpm": {
+    "overrides": {
+      "vite": "^6.4.3",
+      "esbuild": "^0.25.0",
+      "launch-editor": "^2.10.0"
+    }
+  }
 }

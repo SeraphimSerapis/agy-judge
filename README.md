@@ -2,11 +2,23 @@
 
 `agy-judge` is a small Antigravity CLI plugin that adds a judge layer to coding-agent workflows. It collects local evidence such as git status, diff stats, diffs, hook payloads, and command output when available, sends a redacted review packet to any OpenAI-compatible `/v1/chat/completions` endpoint, validates the judge response, and surfaces a pass/warn/fail/block result.
 
+> This is an independent private project built out of personal interest. It is not an official Google product, not an officially supported Google Antigravity CLI plugin, and is not endorsed by Google.
+>
 > agy-judge sends selected review context, such as diffs and command output, to the configured judge endpoint. Use a local endpoint or review your provider’s data policy if your code is sensitive.
+
+## In Action
+
+Slash-command review catching a security violation:
+
+![agy-judge slash command catching a critical security issue with a FAIL verdict](docs/assets/agy_command.png)
+
+Full agent loop — the agent commits a password, agy-judge flags it, and surfaces the required fix:
+
+![agy-judge hook detecting a password added to README.md and recommending removal](docs/assets/agy_hook.png)
 
 ## Quick Start
 
-From source:
+Requires **Node.js >= 20** and **pnpm**.
 
 ```sh
 git clone https://github.com/SeraphimSerapis/agy-judge.git
@@ -14,23 +26,18 @@ cd agy-judge
 pnpm install
 pnpm build
 pnpm link --global
-agy-judge status
-agy-judge doctor
+agy-judge --version
 ```
 
-Configure a local OpenAI-compatible endpoint:
-
-```sh
-cp .env.example .env
-$EDITOR .env
-agy-judge status
-```
-
-Run a manual review from the project you want judged:
+Then, in the project you want to review, create a `.env` with your judge endpoint:
 
 ```sh
 cd /path/to/your/project
-agy-judge review
+cp /path/to/agy-judge/.env.example .env
+$EDITOR .env       # set JUDGE_BASE_URL, JUDGE_MODEL, and optionally JUDGE_API_KEY
+agy-judge status   # verify config
+agy-judge doctor   # verify endpoint connectivity
+agy-judge review   # run your first review
 ```
 
 Install the Antigravity plugin:
@@ -42,11 +49,13 @@ agy plugin install ./plugin
 agy plugin enable agy-judge
 ```
 
-In Antigravity, run the command if it is available:
+In Antigravity, invoke the plugin skill as a slash command:
 
 ```text
 /agy-judge:agy-judge
 ```
+
+This slash-command workflow is the recommended Antigravity path for 1.0. The skill runs `agy-judge review` against the current workspace. The plugin hook registers as a Stop event, but automatic hook invocation is experimental because real Antigravity sessions have shown missed and duplicate reviews around Stop/PreInvocation/continue cycles.
 
 or ask the agent:
 
@@ -55,33 +64,6 @@ Use agy-judge to review the current work.
 ```
 
 ## Install
-
-### From npm
-
-When published:
-
-```sh
-npm install --global agy-judge
-agy-judge --version
-agy-judge status
-```
-
-Then install the bundled Antigravity plugin metadata:
-
-```sh
-agy plugin validate "$(npm root -g)/agy-judge/plugin"
-agy plugin install "$(npm root -g)/agy-judge/plugin"
-agy plugin enable agy-judge
-```
-
-If you use pnpm global installs instead:
-
-```sh
-pnpm add --global agy-judge
-agy plugin install "$(pnpm root -g)/agy-judge/plugin"
-```
-
-### From source
 
 ```sh
 pnpm install
@@ -108,10 +90,20 @@ After linking, the `agy-judge` command should be available on your `PATH`.
 | `JUDGE_FAIL_OPEN` | `true` | If true, endpoint/runtime failures do not block the workflow. |
 | `JUDGE_MAX_DIFF_BYTES` | `120000` | Maximum diff bytes sent to the judge. |
 | `JUDGE_MAX_OUTPUT_BYTES` | `60000` | Maximum command/test output bytes from hook payloads. |
+| `JUDGE_MAX_PAYLOAD_BYTES` | `120000` | Maximum hook payload bytes; oversized payloads are sliced. |
 | `JUDGE_INCLUDE_DIFF` | `true` | Include `git diff` and `git diff --stat`. |
 | `JUDGE_INCLUDE_STATUS` | `true` | Include `git status --short`. |
 | `JUDGE_INCLUDE_HOOK_PAYLOAD` | `true` | Include Antigravity hook payload stdin when available. |
 | `JUDGE_PROFILE` | `default` | Review profile: `default`, `security`, `tests`, `docs`, or `release`. |
+| `JUDGE_DUMP_PAYLOAD` | empty | Save hook stdin to a file. Redacted by default. |
+| `JUDGE_DUMP_RAW` | `false` | If true, dump the raw unredacted hook payload. |
+| `JUDGE_HOOK_DEDUP` | `true` | Skip duplicate Stop-hook reviews for the same conversation/workspace/git state. |
+| `JUDGE_HOOK_COOLDOWN_MS` | `0` | Duplicate review cooldown window for hook mode. `0` skips the same review key until git state changes. |
+| `JUDGE_HOOK_STATE_FILE` | `<tmpdir>/agy-judge-hook-state.json` | Hook dedup state file. |
+| `JUDGE_HOOK_LOG_FILE` | `<tmpdir>/agy-judge-hook-events.ndjson` | Hook diagnostic event log. |
+| `JUDGE_LOCK_FILE` | `<tmpdir>/agy-judge.lock` | Process lockfile shared by `review` and `hook`. |
+| `JUDGE_VERDICT_FILE` | `<tmpdir>/agy-judge-verdict.json` | Last verdict JSON (consumed by the statusline). |
+| `JUDGE_HOOK_AUTOFIX` | `false` | If `true`, the hook will auto-fix on WARN/FAIL instead of asking the user. |
 
 Configuration precedence is:
 
@@ -147,13 +139,13 @@ JUDGE_FAIL_OPEN=true
 JUDGE_TIMEOUT_MS=60000
 ```
 
-`.env` belongs in the workspace where you run `agy-judge`. It is gitignored by this project and should not be committed.
+`.env` belongs in the project you are reviewing (i.e. the directory where you run `agy-judge review`), not in the agy-judge repo itself. It is gitignored by this project and should not be committed.
 
 You can also add a trusted local rubric in `.agy-judge.rubric.md`. Rubrics are useful for project-specific release rules, security expectations, or documentation standards. Reviewed diffs and hook payloads are still treated as untrusted content.
 
 ## Endpoint Examples
 
-Local vLLM:
+Local vLLM (example template; verify with `agy-judge doctor` before relying on reviews):
 
 ```sh
 export JUDGE_BASE_URL=http://localhost:8000/v1
@@ -161,7 +153,7 @@ export JUDGE_MODEL=Qwen/Qwen3-Coder
 export JUDGE_API_KEY=
 ```
 
-llama.cpp server:
+llama.cpp server (example template; not yet repeatably verified for this release):
 
 ```sh
 export JUDGE_BASE_URL=http://127.0.0.1:8080/v1
@@ -191,7 +183,7 @@ agy-judge status
 agy-judge review
 ```
 
-OpenRouter or another cloud OpenAI-compatible provider:
+OpenRouter or another cloud OpenAI-compatible provider (example template; not yet smoke-tested for this release):
 
 ```sh
 export JUDGE_BASE_URL=https://openrouter.ai/api/v1
@@ -212,10 +204,14 @@ agy-judge review --format json
 agy-judge review --format agent
 agy-judge review --profile security
 agy-judge hook
+agy-judge hook --dump-payload ./captured-payload.json
+agy-judge hook-debug
+agy-judge hook-debug --format json
+agy-judge hook-debug --clear
 agy-judge --version
 ```
 
-`status` prints configuration status without leaking secrets. `doctor` sends a tiny diagnostic request to confirm the endpoint can return valid judge JSON. `print-prompt` renders the redacted review prompt without calling the judge. `review` runs locally. `hook` reads an optional hook payload from stdin and runs the same review flow.
+`status` prints configuration status without leaking secrets. `doctor` sends a tiny diagnostic request to confirm the endpoint can return valid judge JSON. `print-prompt` renders the redacted review prompt without calling the judge. `review` runs locally. `hook` reads an optional hook payload from stdin and runs the same review flow for experimental Antigravity hook setups. `hook-debug` shows recent hook events and dedup state. `--dump-payload` saves hook stdin to a file for debugging.
 
 Output formats:
 
@@ -239,6 +235,7 @@ Before calling the judge endpoint, `agy-judge` builds a redacted review packet f
 - timestamp
 - `git status --short`, when enabled and available
 - `git diff --stat`, staged diff stat, and diffs, when enabled and available
+- untracked non-ignored text files as bounded pseudo-diffs, when enabled and available
 - package metadata from `package.json`, when available
 - Antigravity hook payload from stdin, when enabled and available
 - command/test output found in the hook payload, when available
@@ -288,7 +285,21 @@ pnpm test:review
 
 That test stubs the OpenAI-compatible HTTP call in process, verifies custom headers are passed, and checks both advisory and blocking policy behavior.
 
+For a no-network Stop-hook replay smoke test:
+
+```sh
+pnpm test:hook-replay
+```
+
+That script creates a temporary git workspace, feeds the same synthetic Stop payload to `agy-judge hook` twice, and verifies the second invocation is deduped.
+
 ## Examples
+
+Detailed examples are also available in:
+
+- [docs/workflow.md](docs/workflow.md)
+- [docs/antigravity.md](docs/antigravity.md)
+- [docs/providers.md](docs/providers.md)
 
 Example configuration files live in `examples/env/`:
 
@@ -316,6 +327,48 @@ Example rubrics live in `examples/rubrics/`:
 cp examples/rubrics/release.rubric.md .agy-judge.rubric.md
 agy-judge review --profile release
 ```
+
+## Capturing Hook Payloads
+
+To capture what Antigravity sends to the hook for debugging or fixture creation:
+
+Using the CLI flag:
+
+```sh
+agy-judge hook --dump-payload ./captured-payload.json < examples/hook-payloads/final-response.json
+```
+
+Using an environment variable (works when Antigravity triggers the hook automatically):
+
+```sh
+export JUDGE_DUMP_PAYLOAD=./captured-payload.json
+# Payloads are redacted by default. To save the raw unredacted payload:
+export JUDGE_DUMP_RAW=true
+```
+
+Add `JUDGE_DUMP_PAYLOAD` to `.env` in the workspace where you want to capture payloads. The dump happens before the review, so the normal hook flow still runs.
+
+## If You Use `agy-judge` In Your Own Project
+
+`agy-judge` writes a few files to the workspace it reviews and reads local configuration from it. Add these to your project's `.gitignore` so they are not accidentally committed:
+
+```gitignore
+# agy-judge local config and outputs
+.agy-judge-result.md
+.agy-judge.json
+.agy-judge-hook-payload*.json
+.env
+
+# Default dump path used in this README's examples
+captured-payload.json
+```
+
+- `.agy-judge-result.md` — the human-readable review result written after each `agy-judge hook` run.
+- `.agy-judge.json` — local config file (precedence: real env > `.env` > `.agy-judge.json` > defaults). Keep secrets in `.env` or your shell environment, not in this file.
+- `.agy-judge-hook-payload*.json` — debug dump when `JUDGE_DUMP_PAYLOAD` is set.
+- `captured-payload.json` — the default dump path used in the examples above.
+
+This repository's own `.gitignore` already covers the first four entries; the list above is what you should add to *your* project.
 
 ## Policy Examples
 
@@ -355,20 +408,23 @@ Use this agy-judge feedback to fix the current work, then run the judge again.
 
 ## Antigravity Plugin
 
+For 1.0, the stable Antigravity workflow is manual slash-command invocation. The plugin hook registers as a Stop event, but automatic hook invocation is not the recommended default because real sessions have shown missed reviews, duplicate reviews, and unreliable statusline updates.
+
 The `plugin/` directory contains metadata for:
 
 - `plugin/plugin.json`
 - `plugin/hooks.json`
-- `plugin/commands/commands.json`
 - `plugin/skills/agy-judge/SKILL.md`
 
-The hook command is:
+The experimental hook command is:
 
 ```sh
 agy-judge hook
 ```
 
-The plugin also exposes an explicit command named `agy-judge`. Antigravity CLI may expose plugin commands with a plugin-qualified name, for example:
+See [docs/antigravity.md](docs/antigravity.md) before relying on automatic hooks.
+
+The plugin exposes a skill named `agy-judge` that converts into a slash command. In a fresh Antigravity session, invoke:
 
 ```text
 /agy-judge:agy-judge
@@ -380,18 +436,7 @@ That command runs:
 agy-judge review
 ```
 
-The command metadata follows the Antigravity CLI plugin command format:
-
-```json
-{
-  "agy-judge": {
-    "type": "command",
-    "command": "agy-judge review"
-  }
-}
-```
-
-If your Antigravity CLI session has not reloaded plugin commands yet, start a new session or use the skill-style activation:
+If the slash command is not visible, start a new Antigravity session after installing the plugin, or use the skill-style activation:
 
 ```text
 Use agy-judge to review this.
@@ -421,7 +466,7 @@ agy plugin install ./plugin
 agy plugin enable agy-judge
 ```
 
-The Antigravity hooks and plugin docs are at [hooks](https://antigravity.google/docs/hooks), [plugins](https://antigravity.google/docs/plugins), and [CLI plugins](https://antigravity.google/docs/cli-plugins).
+The Antigravity docs are at [plugins](https://antigravity.google/docs/plugins), [hooks](https://antigravity.google/docs/hooks), [CLI plugins](https://antigravity.google/docs/cli-plugins), and [CLI statusline](https://antigravity.google/docs/cli-statusline).
 
 The plugin assumes the `agy-judge` CLI is already installed and available on the `PATH` used by Antigravity.
 
@@ -471,15 +516,58 @@ agy plugin install /path/to/agy-judge/plugin
 agy plugin enable agy-judge
 ```
 
-Restart the Antigravity session after installing. Depending on the CLI version, the command may appear as:
+Restart the Antigravity session after installing. The skill-based slash command may appear as:
 
 ```text
 /agy-judge:agy-judge
 ```
 
-### Hooks show as skipped
+### Stop hooks are skipped, missed, or run twice
 
-Check that `plugin/hooks.json` exists and validates. Hook support and payload shape may change across Antigravity releases; this project keeps the hook minimal and falls back gracefully when stdin is empty.
+The plugin hook registers as a Stop event, but automatic hook behavior is still experimental. Real Antigravity sessions have shown missed reviews and duplicate reviews, especially around Stop/PreInvocation/continue cycles. Prefer the slash command for reliable reviews:
+
+```text
+/agy-judge:agy-judge
+```
+
+For hook debugging, capture payloads:
+
+```sh
+export JUDGE_DUMP_PAYLOAD=./captured-payload.json
+```
+
+Hook mode also uses a lock plus content-based deduplication by default. By default, duplicate reviews for the same conversation/workspace/git state are skipped until the git state changes. To use a time-based dedup window instead:
+
+```sh
+export JUDGE_HOOK_COOLDOWN_MS=60000
+```
+
+To inspect or relocate the dedup state file:
+
+```sh
+export JUDGE_HOOK_STATE_FILE=/tmp/agy-judge-hook-state.json
+```
+
+To inspect recent hook events:
+
+```sh
+agy-judge hook-debug
+agy-judge hook-debug --format json
+```
+
+To clear the hook event log:
+
+```sh
+agy-judge hook-debug --clear
+```
+
+To disable hook dedup temporarily while debugging:
+
+```sh
+export JUDGE_HOOK_DEDUP=false
+```
+
+See [docs/antigravity.md](docs/antigravity.md).
 
 ### The judge says there is nothing to evaluate
 
@@ -531,14 +619,13 @@ Ideas that fit future releases:
 
 ## Limitations
 
-- Hook metadata validates with the current CLI, but hook payload shape may evolve with Antigravity releases.
+- Slash-command invocation is the recommended Antigravity path for 1.0.
+- The plugin hook registers as a Stop event, but hook-based auto-invocation is experimental; real sessions have shown missed and duplicate reviews.
+- Statusline integration is disabled for now because updates were unreliable.
 - Redaction is regex-based and cannot catch every secret.
 - The judge only sees collected local context, not the full agent transcript unless Antigravity includes it in the hook payload.
-- JSON output mode is planned but not implemented in v0.
 
 ## Roadmap
-
-See [ROADMAP.md](ROADMAP.md) for the concrete path to 1.0.
 
 - More robust Antigravity hook payload parsing once the schema stabilizes.
 - Optional test command execution and captured test summaries.

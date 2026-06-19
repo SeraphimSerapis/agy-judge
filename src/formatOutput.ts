@@ -39,7 +39,7 @@ export function formatAgentFeedback(judge: JudgeResponse, decision: PolicyDecisi
     `Summary: ${judge.summary}`,
     "",
     `Blocking: ${decision.blocked ? "Yes" : "No"}`,
-    `Policy: ${decision.reason}`
+    `Policy: ${decision.reason}`,
   ];
 
   const required = judge.required_changes.length > 0 ? judge.required_changes : [];
@@ -67,7 +67,15 @@ export function formatAgentFeedback(judge: JudgeResponse, decision: PolicyDecisi
 
 export function formatRuntimeError(error: unknown, failOpen: boolean): string {
   const message = error instanceof Error ? error.message : String(error);
-  return [`agy-judge: ${failOpen ? "WARN" : "ERROR"}`, "", "Runtime:", message, "", "Blocking:", failOpen ? "No" : "Yes"].join("\n");
+  return [
+    `agy-judge: ${failOpen ? "WARN" : "ERROR"}`,
+    "",
+    "Runtime:",
+    message,
+    "",
+    "Blocking:",
+    failOpen ? "No" : "Yes",
+  ].join("\n");
 }
 
 function appendList(lines: string[], title: string, values: string[]): void {

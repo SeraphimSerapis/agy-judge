@@ -3,15 +3,23 @@ dist/
 coverage/
 
 .agy-judge.json
+.agy-judge-result.md
+.agy-judge-hook-payload*.json
 .env
 .env.*
 !.env.example
+
+# Default dump path used in README/docs examples.
+captured-payload.json
 
 .DS_Store
 *.log
 npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
+
+# npm pack / pnpm pack output (release.yml uploads agy-judge-*.tgz).
+*.tgz
 
 .tmp/
 tmp/

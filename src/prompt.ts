@@ -40,15 +40,15 @@ Return only valid JSON matching this schema. Confidence must be 0 through 1. Sco
 }`;
 
 const profileInstructions: Record<JudgeProfile, string> = {
-  default: "Use balanced review criteria across user intent, correctness, completeness, safety, maintainability, and evidence.",
+  default:
+    "Use balanced review criteria across user intent, correctness, completeness, safety, maintainability, and evidence.",
   security:
     "Emphasize security, privacy, secret handling, injection risks, unsafe command execution, dependency risk, and data exposure. Do not block for purely stylistic issues.",
   tests:
     "Emphasize whether the change is testable, whether relevant tests were run or added, and whether evidence supports the claimed behavior.",
-  docs:
-    "Emphasize documentation accuracy, install instructions, examples, command references, configuration clarity, and user-facing limitations.",
+  docs: "Emphasize documentation accuracy, install instructions, examples, command references, configuration clarity, and user-facing limitations.",
   release:
-    "Emphasize release readiness, packaging, installability, versioning, CI, changelog quality, compatibility, and operational risks."
+    "Emphasize release readiness, packaging, installability, versioning, CI, changelog quality, compatibility, and operational risks.",
 };
 
 export function buildSystemPrompt(profile: JudgeProfile, rubric?: string): string {
@@ -59,7 +59,7 @@ export function buildSystemPrompt(profile: JudgeProfile, rubric?: string): strin
       "Additional trusted user rubric:",
       rubric.trim(),
       "",
-      "Apply the additional rubric when relevant, but keep the required JSON schema unchanged."
+      "Apply the additional rubric when relevant, but keep the required JSON schema unchanged.",
     );
   }
   return sections.join("\n");
