@@ -15,7 +15,7 @@ export async function callJudge(config: JudgeConfig, systemPrompt: string, userP
 
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },
-    { role: "user", content: userPrompt }
+    { role: "user", content: userPrompt },
   ];
   const first = await chatCompletion(config, messages);
   const firstParsed = parseJudgeResponse(first);
@@ -24,7 +24,7 @@ export async function callJudge(config: JudgeConfig, systemPrompt: string, userP
   const repairMessages: ChatMessage[] = [
     ...messages,
     { role: "assistant", content: first },
-    { role: "user", content: repairPrompt }
+    { role: "user", content: repairPrompt },
   ];
   const second = await chatCompletion(config, repairMessages);
   const secondParsed = parseJudgeResponse(second);
@@ -42,14 +42,14 @@ async function chatCompletion(config: JudgeConfig, messages: ChatMessage[]): Pro
       headers: {
         ...config.headers,
         "content-type": "application/json",
-        ...(config.apiKey ? { authorization: `Bearer ${config.apiKey}` } : {})
+        ...(config.apiKey ? { authorization: `Bearer ${config.apiKey}` } : {}),
       },
       body: JSON.stringify({
         model: config.model,
         temperature: config.temperature,
         messages,
-        response_format: { type: "json_object" }
-      })
+        response_format: { type: "json_object" },
+      }),
     });
     if (!response.ok) throw new JudgeClientError(`Judge endpoint returned HTTP ${response.status}.`);
     const data = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
@@ -76,11 +76,45 @@ function parseJudgeResponse(text: string): { ok: true; value: JudgeResponse } | 
   }
 }
 
-function extractJsonObject(text: string): string {
+export function extractJsonObject(text: string): string {
   const trimmed = text.trim();
+
+  // Strip Markdown code fences if the model wrapped the JSON in ```json ... ```.
+  const fenced = trimmed.match(/^```(?:json)?\s*\n([\s\S]*?)\n```\s*$/);
+  if (fenced) return fenced[1];
+
   if (trimmed.startsWith("{") && trimmed.endsWith("}")) return trimmed;
+
+  // Find the first '{' and walk forward, balancing braces and respecting
+  // string literals (with escape sequences). This avoids the naive
+  // first-'{'-last-'}' bug where prose containing '}' and then a valid
+  // JSON object produces garbage.
   const start = trimmed.indexOf("{");
-  const end = trimmed.lastIndexOf("}");
-  if (start >= 0 && end > start) return trimmed.slice(start, end + 1);
+  if (start < 0) return trimmed;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < trimmed.length; i += 1) {
+    const ch = trimmed[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === "\\") {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+    } else if (ch === "{") {
+      depth += 1;
+    } else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return trimmed.slice(start, i + 1);
+    }
+  }
   return trimmed;
 }

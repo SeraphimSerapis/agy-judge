@@ -12,7 +12,7 @@ const baseJudge: JudgeResponse = {
     completeness: 3,
     safety_security: 4,
     maintainability: 4,
-    evidence: 2
+    evidence: 2,
   },
   summary: "summary",
   issues: [
@@ -21,12 +21,12 @@ const baseJudge: JudgeResponse = {
       category: "correctness",
       message: "bug",
       evidence: "diff",
-      suggested_fix: "fix it"
-    }
+      suggested_fix: "fix it",
+    },
   ],
   required_changes: [],
   optional_improvements: [],
-  judge_notes: ""
+  judge_notes: "",
 };
 
 describe("applyPolicy", () => {

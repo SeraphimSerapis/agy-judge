@@ -1,5 +1,12 @@
 {
   "agy-judge-review": {
-    "command": "agy-judge hook"
+    "enabled": false,
+    "Stop": [
+      {
+        "type": "command",
+        "command": "agy-judge hook",
+        "timeout": 180
+      }
+    ]
   }
 }

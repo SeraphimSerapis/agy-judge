@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { runCli } from "../src/cli.js";
+import { appendHookLogEvent } from "../src/hookLog.js";
+import { writeHookReviewState } from "../src/hookState.js";
 import type { JudgeResponse } from "../src/schema.js";
 
 const previousEnv = { ...process.env };
@@ -32,12 +34,12 @@ describe.sequential("review flow", () => {
     expect(init?.method).toBe("POST");
     expect(init?.headers).toMatchObject({
       "X-Test": "review-flow",
-      "content-type": "application/json"
+      "content-type": "application/json",
     });
     expect(JSON.parse(String(init?.body))).toMatchObject({
       model: "mock-model",
       temperature: 0,
-      response_format: { type: "json_object" }
+      response_format: { type: "json_object" },
     });
     expect(logMock.mock.calls.at(-1)?.[0]).toContain("agy-judge: PASS");
   });
@@ -47,7 +49,7 @@ describe.sequential("review flow", () => {
     configureEnv({
       JUDGE_MODE: "block",
       JUDGE_BLOCK_ON: "critical",
-      JUDGE_HEADERS: "{}"
+      JUDGE_HEADERS: "{}",
     });
     mockJudgeFetch(
       mockJudgeResponse({
@@ -59,10 +61,10 @@ describe.sequential("review flow", () => {
             category: "correctness",
             message: "Critical mocked issue",
             evidence: "Mock evidence",
-            suggested_fix: "Fix the mocked issue"
-          }
-        ]
-      })
+            suggested_fix: "Fix the mocked issue",
+          },
+        ],
+      }),
     );
     const logMock = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
@@ -102,6 +104,37 @@ describe.sequential("review flow", () => {
     expect(output.checks.model).toBe(true);
     expect(output.diagnostic.verdict).toBe("pass");
   });
+
+  it("prints hook debug state as JSON", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "agy-judge-hook-debug-"));
+    const stateFile = join(cwd, "state.json");
+    const logFile = join(cwd, "events.ndjson");
+    writeHookReviewState(stateFile, {
+      key: "debug-key",
+      timestamp: 123,
+      conversationId: "conv",
+      workspace: cwd,
+    });
+    appendHookLogEvent(logFile, {
+      event: "skip",
+      reason: "duplicate",
+      conversationId: "conv",
+      workspace: cwd,
+    });
+    configureEnv({
+      JUDGE_HOOK_STATE_FILE: stateFile,
+      JUDGE_HOOK_LOG_FILE: logFile,
+    });
+    const logMock = vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    const exitCode = await runCli(["hook-debug", "--format", "json"]);
+
+    expect(exitCode).toBe(0);
+    const output = JSON.parse(String(logMock.mock.calls.at(-1)?.[0]));
+    expect(output.state.key).toBe("debug-key");
+    expect(output.events).toHaveLength(1);
+    expect(output.events[0].reason).toBe("duplicate");
+  });
 });
 
 function chdirToReviewableRepo(): void {
@@ -112,6 +145,7 @@ function chdirToReviewableRepo(): void {
 }
 
 function configureEnv(overrides: Record<string, string>): void {
+  const tmp = mkdtempSync(join(tmpdir(), "agy-judge-flow-config-"));
   process.env = {
     ...previousEnv,
     JUDGE_BASE_URL: "http://mock-judge.local/v1",
@@ -120,7 +154,11 @@ function configureEnv(overrides: Record<string, string>): void {
     JUDGE_INCLUDE_DIFF: "true",
     JUDGE_INCLUDE_STATUS: "true",
     JUDGE_FAIL_OPEN: "true",
-    ...overrides
+    JUDGE_LOCK_FILE: join(tmp, "agy-judge.lock"),
+    JUDGE_VERDICT_FILE: join(tmp, "verdict.json"),
+    JUDGE_HOOK_STATE_FILE: join(tmp, "hook-state.json"),
+    JUDGE_HOOK_LOG_FILE: join(tmp, "hook-events.ndjson"),
+    ...overrides,
   };
 }
 
@@ -128,9 +166,9 @@ function mockJudgeFetch(judgeResponse: JudgeResponse) {
   const fetchMock = vi.fn(async () => {
     return new Response(
       JSON.stringify({
-        choices: [{ message: { content: JSON.stringify(judgeResponse) } }]
+        choices: [{ message: { content: JSON.stringify(judgeResponse) } }],
       }),
-      { status: 200, headers: { "content-type": "application/json" } }
+      { status: 200, headers: { "content-type": "application/json" } },
     );
   }) as unknown as ReturnType<typeof vi.fn<typeof fetch>>;
   vi.stubGlobal("fetch", fetchMock);
@@ -148,13 +186,13 @@ function mockJudgeResponse(overrides: Partial<JudgeResponse>): JudgeResponse {
       completeness: 5,
       safety_security: 5,
       maintainability: 5,
-      evidence: 5
+      evidence: 5,
     },
     summary: "Mocked review summary.",
     issues: [],
     required_changes: [],
     optional_improvements: [],
     judge_notes: "Mocked judge notes.",
-    ...overrides
+    ...overrides,
   };
 }
